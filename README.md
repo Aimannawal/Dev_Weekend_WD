@@ -134,7 +134,7 @@ source venv/bin/activate
 
 ### 7. Instalasi Dependensi
 
-Install seluruh library yang dibutuhkan berdasarkan file `requirements.txt`:
+Install seluruh library yang dibutuhkan berdasarkan file `requirement.txt`:
 
 ```bash
 pip install -r requirements.txt
