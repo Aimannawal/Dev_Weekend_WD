@@ -14,12 +14,12 @@ Aplikasi web berbasis **Laravel** yang terintegrasi dengan **FastAPI ML Model** 
 - [Setup Laravel](#setup-laravel)
 - [Konfigurasi Database](#konfigurasi-database)
 - [Membuat File-file Laravel](#membuat-file-file-laravel)
-  - [Migration](#2-isi-migration)
-  - [Model](#4-isi-model----appmodelsstuntingpredictionphp)
-  - [Service](#5-isi-service----appservicesstuntingpredictionservicephp)
-  - [Controller](#6-isi-controller----apphttpcontrollersstuntingpredictioncontrollerphp)
-  - [Routes](#7-isi-routes----routeswebphp)
-  - [Views](#9-buat-file-views)
+  - [Migration](#1-buat-migration)
+  - [Model](#2-buat-model)
+  - [Service](#3-buat-service)
+  - [Controller](#4-buat-controller)
+  - [Routes](#5-isi-routes----routeswebphp)
+  - [Views](#6-buat-file-views)
 - [Menjalankan Aplikasi](#menjalankan-aplikasi)
 - [Endpoint & Halaman](#endpoint--halaman)
 - [Alur Kerja Aplikasi](#alur-kerja-aplikasi)
@@ -213,18 +213,13 @@ Buka `config/services.php`, tambahkan di dalam array:
 
 ## Membuat File-file Laravel
 
-### 1. Buat migration, model, dan controller
+### 1. Buat Migration
 
 ```bash
 php artisan make:migration create_stunting_predictions_table
-php artisan make:model StuntingPrediction
-php artisan make:controller StuntingPredictionController
-mkdir -p app/Services
 ```
 
-### 2. Isi migration
-
-Buka file di `database/migrations/xxxx_create_stunting_predictions_table.php`:
+Buka file yang baru dibuat di `database/migrations/xxxx_create_stunting_predictions_table.php`, lalu isi dengan:
 
 ```php
 <?php
@@ -268,13 +263,21 @@ return new class extends Migration
 };
 ```
 
-### 3. Jalankan migration
+Jalankan migration:
 
 ```bash
 php artisan migrate
 ```
 
-### 4. Isi Model — `app/Models/StuntingPrediction.php`
+---
+
+### 2. Buat Model
+
+```bash
+php artisan make:model StuntingPrediction
+```
+
+Buka `app/Models/StuntingPrediction.php`, lalu isi dengan:
 
 ```php
 <?php
@@ -308,7 +311,53 @@ class StuntingPrediction extends Model
 }
 ```
 
-### 5. Isi Service — `app/Services/StuntingPredictionService.php`
+---
+
+### 3. Buat Service
+
+Jalankan perintah berikut untuk membuat file Service sekaligus:
+
+```bash
+mkdir -p app/Services && cat > app/Services/StuntingPredictionService.php << 'EOF'
+<?php
+
+namespace App\Services;
+
+use Illuminate\Support\Facades\Http;
+use Exception;
+
+class StuntingPredictionService
+{
+    protected string $baseUrl;
+
+    public function __construct()
+    {
+        $this->baseUrl = config('services.stunting_api.url', 'http://127.0.0.1:8001');
+    }
+
+    public function predict(array $data): array
+    {
+        $response = Http::timeout(30)
+            ->post("{$this->baseUrl}/predict", $data);
+
+        if ($response->failed()) {
+            throw new Exception('FastAPI error: HTTP ' . $response->status());
+        }
+
+        return $response->json();
+    }
+}
+EOF
+```
+
+> **Windows (PowerShell)?** Gunakan cara ini sebagai alternatif:
+
+```powershell
+New-Item -ItemType Directory -Force -Path app/Services
+New-Item -ItemType File -Path app/Services/StuntingPredictionService.php
+```
+
+Lalu isi `app/Services/StuntingPredictionService.php` secara manual dengan:
 
 ```php
 <?php
@@ -341,7 +390,15 @@ class StuntingPredictionService
 }
 ```
 
-### 6. Isi Controller — `app/Http/Controllers/StuntingPredictionController.php`
+---
+
+### 4. Buat Controller
+
+```bash
+php artisan make:controller StuntingPredictionController
+```
+
+Buka `app/Http/Controllers/StuntingPredictionController.php`, lalu isi dengan:
 
 ```php
 <?php
@@ -432,9 +489,11 @@ class StuntingPredictionController extends Controller
 }
 ```
 
-### 7. Isi Routes — `routes/web.php`
+---
 
-Tambahkan:
+### 5. Isi Routes — `routes/web.php`
+
+Buka `routes/web.php`, tambahkan:
 
 ```php
 use App\Http\Controllers\StuntingPredictionController;
@@ -447,19 +506,29 @@ Route::prefix('stunting')->name('stunting.')->group(function () {
 });
 ```
 
-### 8. Buat folder views
+---
+
+### 6. Buat File Views
+
+Buat folder views terlebih dahulu:
 
 ```bash
 mkdir -p resources/views/stunting
 ```
 
-### 9. Buat file views
-
-Buat tiga file berikut di `resources/views/stunting/`:
+Lalu buat ketiga file view berikut satu per satu:
 
 ---
 
 #### `resources/views/stunting/create.blade.php`
+
+```bash
+touch resources/views/stunting/create.blade.php
+```
+
+> **Windows:** `New-Item -ItemType File -Path resources/views/stunting/create.blade.php`
+
+Isi file `resources/views/stunting/create.blade.php` dengan:
 
 ```html
 <!DOCTYPE html>
@@ -617,6 +686,14 @@ Buat tiga file berikut di `resources/views/stunting/`:
 
 #### `resources/views/stunting/show.blade.php`
 
+```bash
+touch resources/views/stunting/show.blade.php
+```
+
+> **Windows:** `New-Item -ItemType File -Path resources/views/stunting/show.blade.php`
+
+Isi file `resources/views/stunting/show.blade.php` dengan:
+
 ```html
 <!DOCTYPE html>
 <html lang="id">
@@ -693,6 +770,14 @@ Buat tiga file berikut di `resources/views/stunting/`:
 ---
 
 #### `resources/views/stunting/index.blade.php`
+
+```bash
+touch resources/views/stunting/index.blade.php
+```
+
+> **Windows:** `New-Item -ItemType File -Path resources/views/stunting/index.blade.php`
+
+Isi file `resources/views/stunting/index.blade.php` dengan:
 
 ```html
 <!DOCTYPE html>
