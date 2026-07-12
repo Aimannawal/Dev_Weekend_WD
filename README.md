@@ -13,11 +13,20 @@ Aplikasi web berbasis **Laravel** yang terintegrasi dengan **FastAPI ML Model** 
 - [Setup FastAPI (ML Model)](#setup-fastapi-ml-model)
 - [Setup Laravel](#setup-laravel)
 - [Konfigurasi Database](#konfigurasi-database)
-- [Konfigurasi Integrasi API](#konfigurasi-integrasi-api)
+- [Membuat File-file Laravel](#membuat-file-file-laravel)
+  - [Migration](#2-isi-migration)
+  - [Model](#4-isi-model----appmodelsstuntingpredictionphp)
+  - [Service](#5-isi-service----appservicesstuntingpredictionservicephp)
+  - [Controller](#6-isi-controller----apphttpcontrollersstuntingpredictioncontrollerphp)
+  - [Routes](#7-isi-routes----routeswebphp)
+  - [Views](#9-buat-file-views)
 - [Menjalankan Aplikasi](#menjalankan-aplikasi)
 - [Endpoint & Halaman](#endpoint--halaman)
 - [Alur Kerja Aplikasi](#alur-kerja-aplikasi)
 - [Struktur File Laravel](#struktur-file-laravel)
+- [Input Data & Validasi](#input-data--validasi)
+- [Output Prediksi](#output-prediksi)
+- [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -165,6 +174,24 @@ cd stunting-laravel
 
 ```bash
 code .
+```
+
+### 4. Install dependencies (sudah otomatis, tapi kalau perlu):
+
+```bash
+composer install
+```
+
+### 5. Copy file environment
+
+```bash
+cp .env.example .env
+```
+
+### 6. Generate application key
+
+```bash
+php artisan key:generate
 ```
 
 ---
@@ -448,11 +475,333 @@ mkdir -p resources/views/stunting
 
 Buat tiga file berikut di `resources/views/stunting/`:
 
-- `create.blade.php` — form input data balita
-- `show.blade.php` — halaman hasil prediksi
-- `index.blade.php` — riwayat semua prediksi
+---
 
-> Isi lengkap masing-masing file ada di dokumen terpisah atau lihat bagian [Isi View](#isi-view) di bawah.
+#### `resources/views/stunting/create.blade.php`
+
+```html
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prediksi Stunting</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen py-10">
+<div class="mx-auto px-4 max-w-2xl">
+
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">🩺 Prediksi Stunting Balita</h1>
+        <a href="{{ route('stunting.index') }}" class="text-sm text-blue-600 hover:underline">← Riwayat</a>
+    </div>
+
+    @if ($errors->has('api'))
+        <div class="bg-red-100 border border-red-300 text-red-700 p-3 rounded-lg mb-4 text-sm">
+            ❌ {{ $errors->first('api') }}
+        </div>
+    @endif
+
+    <div class="bg-white rounded-xl shadow p-6 space-y-5">
+        <form action="{{ route('stunting.store') }}" method="POST">
+            @csrf
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Nama Balita</label>
+                <input type="text" name="nama_balita" value="{{ old('nama_balita') }}"
+                       placeholder="Opsional"
+                       class="border border-gray-300 rounded-lg w-full px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Usia (bulan) *</label>
+                    <input type="number" name="usia_bulan" value="{{ old('usia_bulan') }}" min="0" max="60"
+                           class="border border-gray-300 rounded-lg w-full px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" required>
+                    @error('usia_bulan')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Jenis Kelamin *</label>
+                    <select name="jenis_kelamin"
+                            class="border border-gray-300 rounded-lg w-full px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" required>
+                        <option value="">-- Pilih --</option>
+                        <option value="L" {{ old('jenis_kelamin')=='L'?'selected':'' }}>Laki-laki</option>
+                        <option value="P" {{ old('jenis_kelamin')=='P'?'selected':'' }}>Perempuan</option>
+                    </select>
+                    @error('jenis_kelamin')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Berat Lahir (kg) *</label>
+                    <input type="number" step="0.01" name="berat_lahir_kg" value="{{ old('berat_lahir_kg') }}"
+                           placeholder="cth: 3.2"
+                           class="border border-gray-300 rounded-lg w-full px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Panjang Lahir (cm) *</label>
+                    <input type="number" step="0.1" name="panjang_lahir_cm" value="{{ old('panjang_lahir_cm') }}"
+                           placeholder="cth: 50.0"
+                           class="border border-gray-300 rounded-lg w-full px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" required>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">ASI Eksklusif *</label>
+                    <select name="asi_eksklusif"
+                            class="border border-gray-300 rounded-lg w-full px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" required>
+                        <option value="">-- Pilih --</option>
+                        <option value="Ya"    {{ old('asi_eksklusif')=='Ya'?'selected':'' }}>Ya</option>
+                        <option value="Tidak" {{ old('asi_eksklusif')=='Tidak'?'selected':'' }}>Tidak</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Protein Harian (g) *</label>
+                    <input type="number" step="0.1" name="protein_harian" value="{{ old('protein_harian') }}"
+                           placeholder="cth: 45.0"
+                           class="border border-gray-300 rounded-lg w-full px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" required>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Frekuensi Makan (x/hari) *</label>
+                    <input type="number" name="frekuensi_makan" value="{{ old('frekuensi_makan') }}"
+                           class="border border-gray-300 rounded-lg w-full px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Tinggi Ibu (cm) *</label>
+                    <input type="number" step="0.1" name="tinggi_ibu_cm" value="{{ old('tinggi_ibu_cm') }}"
+                           placeholder="cth: 160.0"
+                           class="border border-gray-300 rounded-lg w-full px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" required>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Riwayat Diare (kali) *</label>
+                    <input type="number" name="riwayat_diare" value="{{ old('riwayat_diare') }}"
+                           class="border border-gray-300 rounded-lg w-full px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" required>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Pendapatan Keluarga (Rp) *</label>
+                    <input type="number" name="pendapatan_keluarga" value="{{ old('pendapatan_keluarga') }}"
+                           placeholder="cth: 6000000"
+                           class="border border-gray-300 rounded-lg w-full px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" required>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Sanitasi Layak *</label>
+                    <select name="sanitasi_layak"
+                            class="border border-gray-300 rounded-lg w-full px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" required>
+                        <option value="">-- Pilih --</option>
+                        <option value="Ya"    {{ old('sanitasi_layak')=='Ya'?'selected':'' }}>Ya</option>
+                        <option value="Tidak" {{ old('sanitasi_layak')=='Tidak'?'selected':'' }}>Tidak</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Imunisasi Lengkap *</label>
+                    <select name="imunisasi_lengkap"
+                            class="border border-gray-300 rounded-lg w-full px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" required>
+                        <option value="">-- Pilih --</option>
+                        <option value="Ya"    {{ old('imunisasi_lengkap')=='Ya'?'selected':'' }}>Ya</option>
+                        <option value="Tidak" {{ old('imunisasi_lengkap')=='Tidak'?'selected':'' }}>Tidak</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Risk Score *</label>
+                    <input type="number" step="0.1" name="risk_score" value="{{ old('risk_score') }}"
+                           placeholder="cth: 15.0"
+                           class="border border-gray-300 rounded-lg w-full px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" required>
+                </div>
+            </div>
+
+            <button type="submit"
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg transition text-sm mt-2">
+                🔍 Prediksi Sekarang
+            </button>
+        </form>
+    </div>
+</div>
+</body>
+</html>
+```
+
+---
+
+#### `resources/views/stunting/show.blade.php`
+
+```html
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hasil Prediksi Stunting</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen py-10">
+<div class="mx-auto px-4 max-w-lg">
+
+    <h1 class="text-2xl font-bold text-center text-gray-800 mb-6">Hasil Prediksi Stunting</h1>
+
+    @if($stunting->prediction_code == 1)
+        <div class="bg-red-50 border-2 border-red-400 rounded-2xl p-8 mb-5 text-center shadow">
+            <p class="text-6xl mb-3">⚠️</p>
+            <h2 class="text-3xl font-bold text-red-700">STUNTING</h2>
+            <p class="text-red-500 mt-2 text-sm">Balita terdeteksi berisiko stunting. Segera konsultasi ke dokter.</p>
+        </div>
+    @else
+        <div class="bg-green-50 border-2 border-green-400 rounded-2xl p-8 mb-5 text-center shadow">
+            <p class="text-6xl mb-3">✅</p>
+            <h2 class="text-3xl font-bold text-green-700">TIDAK STUNTING</h2>
+            <p class="text-green-500 mt-2 text-sm">Pertumbuhan balita dalam kondisi normal.</p>
+        </div>
+    @endif
+
+    @if($stunting->probability_stunting_percent !== null)
+        <div class="bg-white rounded-xl shadow p-4 mb-5 text-center">
+            <p class="text-gray-500 text-sm mb-1">Probabilitas Stunting</p>
+            <p class="text-3xl font-bold {{ $stunting->prediction_code == 1 ? 'text-red-600' : 'text-green-600' }}">
+                {{ number_format($stunting->probability_stunting_percent, 2) }}%
+            </p>
+        </div>
+    @endif
+
+    <div class="bg-white rounded-xl shadow p-5 mb-5 text-sm text-gray-700 space-y-2">
+        <h3 class="font-semibold text-gray-800 mb-3 text-base">Detail Data</h3>
+        <div class="flex justify-between border-b pb-2"><span class="text-gray-500">Nama Balita</span><span class="font-medium">{{ $stunting->nama_balita ?? '-' }}</span></div>
+        <div class="flex justify-between border-b pb-2"><span class="text-gray-500">Usia</span><span class="font-medium">{{ $stunting->usia_bulan }} bulan</span></div>
+        <div class="flex justify-between border-b pb-2"><span class="text-gray-500">Jenis Kelamin</span><span class="font-medium">{{ $stunting->jenis_kelamin == 'L' ? 'Laki-laki' : 'Perempuan' }}</span></div>
+        <div class="flex justify-between border-b pb-2"><span class="text-gray-500">Berat Lahir</span><span class="font-medium">{{ $stunting->berat_lahir_kg }} kg</span></div>
+        <div class="flex justify-between border-b pb-2"><span class="text-gray-500">Panjang Lahir</span><span class="font-medium">{{ $stunting->panjang_lahir_cm }} cm</span></div>
+        <div class="flex justify-between border-b pb-2"><span class="text-gray-500">ASI Eksklusif</span><span class="font-medium">{{ $stunting->asi_eksklusif }}</span></div>
+        <div class="flex justify-between border-b pb-2"><span class="text-gray-500">Protein Harian</span><span class="font-medium">{{ $stunting->protein_harian }} g</span></div>
+        <div class="flex justify-between border-b pb-2"><span class="text-gray-500">Frekuensi Makan</span><span class="font-medium">{{ $stunting->frekuensi_makan }}x/hari</span></div>
+        <div class="flex justify-between border-b pb-2"><span class="text-gray-500">Tinggi Ibu</span><span class="font-medium">{{ $stunting->tinggi_ibu_cm }} cm</span></div>
+        <div class="flex justify-between border-b pb-2"><span class="text-gray-500">Riwayat Diare</span><span class="font-medium">{{ $stunting->riwayat_diare }} kali</span></div>
+        <div class="flex justify-between border-b pb-2"><span class="text-gray-500">Pendapatan Keluarga</span><span class="font-medium">Rp {{ number_format($stunting->pendapatan_keluarga, 0, ',', '.') }}</span></div>
+        <div class="flex justify-between border-b pb-2"><span class="text-gray-500">Sanitasi Layak</span><span class="font-medium">{{ $stunting->sanitasi_layak }}</span></div>
+        <div class="flex justify-between border-b pb-2"><span class="text-gray-500">Imunisasi Lengkap</span><span class="font-medium">{{ $stunting->imunisasi_lengkap }}</span></div>
+        <div class="flex justify-between border-b pb-2"><span class="text-gray-500">Risk Score</span><span class="font-medium">{{ $stunting->risk_score }}</span></div>
+        <div class="flex justify-between border-b pb-2"><span class="text-gray-500">Diprediksi oleh</span><span class="font-medium">{{ $stunting->predicted_by ?? '-' }}</span></div>
+        <div class="flex justify-between"><span class="text-gray-500">Waktu</span><span class="font-medium">{{ $stunting->created_at->format('d M Y H:i') }}</span></div>
+    </div>
+
+    <div class="flex gap-3">
+        <a href="{{ route('stunting.create') }}"
+           class="flex-1 text-center bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg transition text-sm">
+            + Prediksi Baru
+        </a>
+        <a href="{{ route('stunting.index') }}"
+           class="flex-1 text-center bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2.5 rounded-lg transition text-sm">
+            Riwayat
+        </a>
+    </div>
+
+</div>
+</body>
+</html>
+```
+
+---
+
+#### `resources/views/stunting/index.blade.php`
+
+```html
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Riwayat Prediksi Stunting</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen py-10">
+<div class="mx-auto px-4 max-w-6xl">
+
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">📋 Riwayat Prediksi Stunting</h1>
+        <a href="{{ route('stunting.create') }}"
+           class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition">
+            + Prediksi Baru
+        </a>
+    </div>
+
+    @if(session('success'))
+        <div class="bg-green-100 border border-green-300 text-green-700 p-3 rounded-lg mb-4 text-sm">
+            ✅ {{ session('success') }}
+        </div>
+    @endif
+
+    <div class="bg-white rounded-xl shadow overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 border-b">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-gray-600 font-semibold">#</th>
+                        <th class="px-4 py-3 text-left text-gray-600 font-semibold">Nama Balita</th>
+                        <th class="px-4 py-3 text-left text-gray-600 font-semibold">Usia</th>
+                        <th class="px-4 py-3 text-left text-gray-600 font-semibold">Status</th>
+                        <th class="px-4 py-3 text-left text-gray-600 font-semibold">Probabilitas</th>
+                        <th class="px-4 py-3 text-left text-gray-600 font-semibold">Oleh</th>
+                        <th class="px-4 py-3 text-left text-gray-600 font-semibold">Waktu</th>
+                        <th class="px-4 py-3 text-left text-gray-600 font-semibold">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    @forelse($predictions as $p)
+                    <tr class="hover:bg-gray-50 transition">
+                        <td class="px-4 py-3 text-gray-500">{{ $p->id }}</td>
+                        <td class="px-4 py-3 font-medium text-gray-800">{{ $p->nama_balita ?? '-' }}</td>
+                        <td class="px-4 py-3 text-gray-600">{{ $p->usia_bulan }} bln</td>
+                        <td class="px-4 py-3">
+                            @if($p->prediction_code == 1)
+                                <span class="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-semibold">
+                                    ⚠️ Stunting
+                                </span>
+                            @else
+                                <span class="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-semibold">
+                                    ✅ Tidak Stunting
+                                </span>
+                            @endif
+                        </td>
+                        <td class="px-4 py-3 text-gray-600">
+                            {{ $p->probability_stunting_percent !== null
+                                ? number_format($p->probability_stunting_percent, 2).'%'
+                                : '-' }}
+                        </td>
+                        <td class="px-4 py-3 text-gray-600">{{ $p->predicted_by ?? '-' }}</td>
+                        <td class="px-4 py-3 text-gray-500">{{ $p->created_at->format('d M Y H:i') }}</td>
+                        <td class="px-4 py-3">
+                            <a href="{{ route('stunting.show', $p->id) }}"
+                               class="text-blue-600 hover:underline text-xs font-medium">Detail</a>
+                        </td>
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="8" class="px-4 py-10 text-center text-gray-400">
+                            Belum ada data prediksi.
+                        </td>
+                    </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="mt-4">
+        {{ $predictions->links() }}
+    </div>
+
+</div>
+</body>
+</html>
+```
 
 ---
 
