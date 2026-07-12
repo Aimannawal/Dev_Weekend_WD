@@ -103,7 +103,7 @@ git clone https://github.com/Aimannawal/Dev_Weekend_ML.git
 ### 2. Masuk ke folder ML
 
 ```bash
-cd Dev_Weekend_ML/ML
+cd .\Dev_Weekend_ML\
 ```
 
 ### 3. Buka di VSCode
