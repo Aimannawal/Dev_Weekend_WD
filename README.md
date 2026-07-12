@@ -176,24 +176,6 @@ cd stunting-laravel
 code .
 ```
 
-### 4. Install dependencies (sudah otomatis, tapi kalau perlu):
-
-```bash
-composer install
-```
-
-### 5. Copy file environment
-
-```bash
-cp .env.example .env
-```
-
-### 6. Generate application key
-
-```bash
-php artisan key:generate
-```
-
 ---
 
 ## Konfigurasi Database
