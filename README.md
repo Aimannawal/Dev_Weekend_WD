@@ -137,7 +137,7 @@ source venv/bin/activate
 Install seluruh library yang dibutuhkan berdasarkan file `requirement.txt`:
 
 ```bash
-pip install -r requirements.txt
+pip install -r requirement.txt
 ```
 
 ### 8. Jalankan Server
